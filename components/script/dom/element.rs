@@ -15,6 +15,7 @@ use dom::bindings::codegen::Bindings::AttrBinding::AttrMethods;
 use dom::bindings::codegen::Bindings::DocumentBinding::DocumentMethods;
 use dom::bindings::codegen::Bindings::ElementBinding;
 use dom::bindings::codegen::Bindings::ElementBinding::ElementMethods;
+use dom::bindings::codegen::Bindings::ElementBinding::{ScrollLogicalPosition, ScrollIntoViewOptions};
 use dom::bindings::codegen::Bindings::EventBinding::EventMethods;
 use dom::bindings::codegen::Bindings::HTMLInputElementBinding::HTMLInputElementMethods;
 use dom::bindings::codegen::Bindings::HTMLTemplateElementBinding::HTMLTemplateElementMethods;
@@ -66,6 +67,9 @@ use html5ever::serialize::SerializeOpts;
 use html5ever::serialize::TraversalScope;
 use html5ever::serialize::TraversalScope::{ChildrenOnly, IncludeNode};
 use html5ever::tree_builder::{LimitedQuirks, NoQuirks, Quirks};
+use js::jsapi::{JSContext, JSObject, RootedValue};
+use js::jsval::UndefinedValue;
+use js::conversions::ToJSValConvertible;
 use selectors::matching::{DeclarationBlock, ElementFlags, matches};
 use selectors::matching::{HAS_SLOW_SELECTOR, HAS_EDGE_CHILD_SELECTOR, HAS_SLOW_SELECTOR_LATER_SIBLINGS};
 use selectors::matching::{common_style_affecting_attributes, rare_style_affecting_attributes};
@@ -1407,6 +1411,22 @@ impl ElementMethods for Element {
                      rect.origin.y.to_f64_px(),
                      rect.size.width.to_f64_px(),
                      rect.size.height.to_f64_px())
+    }
+
+    // https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview
+    #[allow(unsafe_code)]
+    fn ScrollIntoView(&self, cx: *mut JSContext, options: *mut JSObject) {
+        let mut rval = RootedValue::new(cx, UndefinedValue());
+        let opts = unsafe {
+            options.to_jsval(cx, rval.handle_mut());
+            match ScrollIntoViewOptions::new(cx, rval.handle()) {
+                Ok(res) => res,
+                Err(_) => ScrollIntoViewOptions::empty(cx)
+            }
+        };
+    }
+
+    fn ScrollIntoView_(&self) {
     }
 
     // https://drafts.csswg.org/cssom-view/#dom-element-clienttop

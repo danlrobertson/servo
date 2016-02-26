@@ -68,10 +68,25 @@ interface Element : Node {
   HTMLCollection getElementsByClassName(DOMString classNames);
 };
 
+enum ScrollLogicalPosition {
+  "start",
+  "center",
+  "end",
+  "nearest"
+};
+
+dictionary ScrollIntoViewOptions : ScrollOptions {
+  ScrollLogicalPosition block = "center";
+  ScrollLogicalPosition inline = "center";
+};
+
 // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-element-interface
 partial interface Element {
   DOMRectList getClientRects();
   DOMRect getBoundingClientRect();
+
+  void scrollIntoView(object options);
+  void scrollIntoView();
 
   readonly attribute long clientTop;
   readonly attribute long clientLeft;
