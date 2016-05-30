@@ -35,7 +35,7 @@ use hyper::http::RawStatus;
 use hyper::method::Method;
 use hyper::mime::{Attr, Mime};
 use ipc_channel::ipc::{self, IpcReceiver, IpcSender};
-use msg::constellation_msg::{PipelineId, ReferrerPolicy};
+use msg::constellation_msg::{CookieData, PipelineId, ReferrerPolicy};
 use std::io::Error as IOError;
 use std::sync::mpsc::Sender;
 use std::thread;
@@ -334,8 +334,12 @@ pub enum CoreResourceMsg {
     WebsocketConnect(WebSocketCommunicate, WebSocketConnectData),
     /// Store a set of cookies for a given originating URL
     SetCookiesForUrl(Url, String, CookieSource),
+    /// Store a set of cookies for a given originating URL
+    SetCookiesForUrlWithData(Url, CookieData, CookieSource),
     /// Retrieve the stored cookies for a given URL
     GetCookiesForUrl(Url, IpcSender<Option<String>>, CookieSource),
+    /// Get a cookie by name for a given originating URL
+    GetCookiesDataForUrl(Url, IpcSender<Vec<CookieData>>, CookieSource),
     /// Cancel a network request corresponding to a given `ResourceId`
     Cancel(ResourceId),
     /// Synchronization message solely for knowing the state of the ResourceChannelManager loop
