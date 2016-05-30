@@ -564,4 +564,9 @@ impl MinMaxConstraint {
             }
         }
     }
+
+    /// The constraint was explicitly specified
+    pub fn is_specified(&self) -> bool {
+        self.min != Au(0) || self.max.is_some()
+    }
 }

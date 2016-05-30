@@ -27,7 +27,8 @@ use std::sync::Arc;
 use style::computed_values::flex_direction;
 use style::logical_geometry::LogicalSize;
 use style::properties::{ComputedValues, ServoComputedValues};
-use style::values::computed::{LengthOrPercentage, LengthOrPercentageOrAuto, LengthOrPercentageOrNone};
+use style::values::computed::{LengthOrPercentage, LengthOrPercentageOrAuto};
+use style::values::computed::{LengthOrPercentageOrAutoOrContent, LengthOrPercentageOrNone};
 
 /// The size of an axis. May be a specified size, a min/max
 /// constraint, or an unlimited size
@@ -43,22 +44,27 @@ impl AxisSize {
     /// containing block size, min constraint, and max constraint
     pub fn new(size: LengthOrPercentageOrAuto, content_size: Option<Au>, min: LengthOrPercentage,
                max: LengthOrPercentageOrNone) -> AxisSize {
+        let constraint = MinMaxConstraint::new(content_size, min, max);
         match size {
-            LengthOrPercentageOrAuto::Length(length) => AxisSize::Definite(length),
+            LengthOrPercentageOrAuto::Length(length) => AxisSize::Definite(constraint.clamp(length)),
             LengthOrPercentageOrAuto::Percentage(percent) => {
                 match content_size {
-                    Some(size) => AxisSize::Definite(size.scale_by(percent)),
-                    None => AxisSize::Infinite
+                    Some(size) => AxisSize::Definite(constraint.clamp(size.scale_by(percent))),
+                    None => AxisSize::new(LengthOrPercentageOrAuto::Auto, content_size, min, max)
                 }
             },
             LengthOrPercentageOrAuto::Calc(calc) => {
                 match content_size {
-                    Some(size) => AxisSize::Definite(size.scale_by(calc.percentage())),
-                    None => AxisSize::Infinite
+                    Some(size) => AxisSize::Definite(constraint.clamp(size.scale_by(calc.percentage()))),
+                    None => AxisSize::new(LengthOrPercentageOrAuto::Auto, content_size, min, max)
                 }
             },
             LengthOrPercentageOrAuto::Auto => {
-                AxisSize::MinMax(MinMaxConstraint::new(content_size, min, max))
+                if constraint.is_specified() {
+                    AxisSize::MinMax(MinMaxConstraint::new(content_size, min, max))
+                } else {
+                    AxisSize::Infinite
+                }
             }
         }
     }
@@ -85,6 +91,33 @@ impl FlexItem {
             flow: flow
         }
     }
+
+    /// [Determine the hypothetical main size of an item](https://drafts.csswg.org/css-flexbox/#algo-main-item)
+    fn determine_flex_basis(&self, available_size: &AxisSize, parent_mode: bool, content_size: Au) -> Au {
+        let block_flow = self.flow.as_block();
+        let child_wm = block_flow.base.writing_mode.is_vertical();
+        let basis = block_flow.fragment.style.get_position().flex_basis;
+        match (basis, available_size) {
+            // Step A
+            (LengthOrPercentageOrAutoOrContent::Length(len), _) => len,
+            (LengthOrPercentageOrAutoOrContent::Percentage(perc), &AxisSize::Definite(len)) => len.scale_by(perc),
+            (LengthOrPercentageOrAutoOrContent::Calc(calc), &AxisSize::Definite(len)) =>
+                len.scale_by(calc.percentage()),
+            // TODO(dlr): handle instances in which the item has a intrinsic aspect ratio,
+            // used flex basis of `content`, and definite cross size. See
+            // https://drafts.csswg.org/css-flexbox/#algo-main-item 9.2.2.B
+            // Step B
+            // TODO(dlr): This doesn't correctly handle orthognal flow
+            // https://www.w3.org/TR/css-writing-modes-3/#orthogonal-flows
+            // Step D
+            (_, &AxisSize::Infinite) if child_wm == parent_mode => content_size,
+            // TODO(dlr): handle step E
+            // Step E
+            (_, _) => content_size
+        }
+    }
+
+    // TODO(zentner): This function should use flex-basis.
 }
 
 /// A block with the CSS `display` property equal to `flex`.
@@ -126,7 +159,6 @@ impl FlexFlow {
         }
     }
 
-    // TODO(zentner): This function should use flex-basis.
     // Currently, this is the core of BlockFlow::bubble_inline_sizes() with all float logic
     // stripped out, and max replaced with union_nonbreaking_inline.
     fn inline_mode_bubble_inline_sizes(&mut self) {
@@ -250,7 +282,7 @@ impl FlexFlow {
             AxisSize::Infinite => content_inline_size,
         };
 
-        let even_content_inline_size = inline_size / child_count;
+        //let even_content_inline_size = inline_size / child_count;
 
         let container_mode = self.block_flow.base.block_container_writing_mode;
         self.block_flow.base.position.size.inline = inline_size;
@@ -264,15 +296,20 @@ impl FlexFlow {
         for kid in &mut self.items {
             let base = flow::mut_base(flow_ref::deref_mut(&mut kid.flow));
 
-            base.block_container_inline_size = even_content_inline_size;
+            let child_size = kid.determine_flex_basis(&self.available_main_size, container_mode.is_vertical(),
+                                                      base.intrinsic_inline_sizes.preferred_inline_size);
+
+            base.block_container_inline_size = child_size;
             base.block_container_writing_mode = container_mode;
             base.block_container_explicit_block_size = block_container_explicit_block_size;
+
+            base.position.size.inline = child_size;
             if !self.is_reverse {
               base.position.start.i = inline_child_start;
-              inline_child_start = inline_child_start + even_content_inline_size;
+              inline_child_start = inline_child_start + child_size;
             } else {
               base.position.start.i = inline_child_start - base.intrinsic_inline_sizes.preferred_inline_size;
-              inline_child_start = inline_child_start - even_content_inline_size;
+              inline_child_start = inline_child_start - child_size;
             };
         }
     }
@@ -473,7 +510,7 @@ impl Flow for FlexFlow {
                                                     inline_end_content_edge,
                                                     content_inline_size)
             }
-        }
+        };
     }
 
     fn assign_block_size<'a>(&mut self, layout_context: &'a LayoutContext<'a>) {
