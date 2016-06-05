@@ -10,6 +10,7 @@
 
 #![deny(unsafe_code)]
 
+extern crate cookie as cookie_rs;
 extern crate euclid;
 extern crate hyper;
 extern crate image;
@@ -30,7 +31,7 @@ use hyper::method::Method::{self, Post};
 use image::{DynamicImage, ImageFormat, RgbImage};
 use ipc_channel::ipc::{self, IpcReceiver, IpcSender};
 use keys::keycodes_to_keys;
-use msg::constellation_msg::{CookieData, FrameId, LoadData, PipelineId};
+use msg::constellation_msg::{FrameId, LoadData, PipelineId};
 use msg::constellation_msg::{NavigationDirection, PixelFormat, WebDriverCommandMsg};
 use msg::webdriver_msg::{LoadStatus, WebDriverCookieError, WebDriverFrameId};
 use msg::webdriver_msg::{WebDriverJSError, WebDriverJSResult, WebDriverScriptCommand};
@@ -53,7 +54,7 @@ use webdriver::command::{AddCookieParameters, GetParameters, JavascriptCommandPa
 use webdriver::command::{LocatorParameters, Parameters};
 use webdriver::command::{SendKeysParameters, SwitchToFrameParameters, TimeoutsParameters};
 use webdriver::command::{WebDriverCommand, WebDriverExtensionCommand, WebDriverMessage};
-use webdriver::common::{Date, LocatorStrategy, Nullable, WebElement};
+use webdriver::common::{LocatorStrategy, Nullable, WebElement};
 use webdriver::error::{ErrorStatus, WebDriverError, WebDriverResult};
 use webdriver::httpapi::WebDriverExtensionRoute;
 use webdriver::response::{Cookie, CookieResponse};
@@ -67,17 +68,18 @@ fn extension_routes() -> Vec<(Method, &'static str, ServoExtensionRoute)> {
                 (Post, "/session/{sessionId}/servo/prefs/reset", ServoExtensionRoute::ResetPrefs)]
 }
 
-fn cookie_msg_to_cookie(cookie: CookieData) -> Cookie {
+fn cookie_msg_to_cookie(cookie: cookie_rs::Cookie) -> Cookie {
     Cookie::new(
         cookie.name,
         cookie.value,
         cookie.path.map(Nullable::Value).unwrap_or(Nullable::Null),
         cookie.domain.map(Nullable::Value).unwrap_or(Nullable::Null),
-        cookie.expiry.map(|x| {
-            Nullable::Value(Date::new(x))
-        }).unwrap_or(Nullable::Null),
+        Nullable::Null,
+        //cookie.expires.map(|x| {
+        //    Nullable::Value(Date::new(x))
+        //}).unwrap_or(Nullable::Null),
         cookie.secure,
-        cookie.http
+        cookie.httponly
         )
 }
 
@@ -654,18 +656,20 @@ impl Handler {
 
     fn handle_add_cookie(&self, params: &AddCookieParameters) -> WebDriverResult<WebDriverResponse> {
         let (sender, receiver) = ipc::channel().unwrap();
-        let cookie = CookieData {
+        let cookie = cookie_rs::Cookie {
             name: params.name.to_owned(),
             value: params.value.to_owned(),
             path: params.path.to_owned().into(),
             domain: params.domain.to_owned().into(),
-            expiry: match params.expiry {
-                Nullable::Value(Date(val)) => Some(val),
-                Nullable::Null => None,
-            },
+            expires: None,
+            //expires: match params.expiry {
+            //    Nullable::Value(Date(val)) => Some(val),
+            //    Nullable::Null => None,
+            //},
             max_age: None,
             secure: params.secure,
-            http: params.httpOnly
+            httponly: params.httpOnly,
+            custom: BTreeMap::new()
         };
         try!(self.frame_script_command(WebDriverScriptCommand::AddCookie(cookie, sender)));
         match receiver.recv().unwrap() {

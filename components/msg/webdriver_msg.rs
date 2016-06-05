@@ -2,7 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use constellation_msg::{PipelineId, CookieData};
+use cookie_rs::Cookie;
+use constellation_msg::PipelineId;
 use euclid::rect::Rect;
 use ipc_channel::ipc::IpcSender;
 use rustc_serialize::json::{Json, ToJson};
@@ -10,15 +11,15 @@ use url::Url;
 
 #[derive(Deserialize, Serialize)]
 pub enum WebDriverScriptCommand {
-    AddCookie(CookieData, IpcSender<Result<(), WebDriverCookieError>>),
+    AddCookie(Cookie, IpcSender<Result<(), WebDriverCookieError>>),
     ExecuteScript(String, IpcSender<WebDriverJSResult>),
     ExecuteAsyncScript(String, IpcSender<WebDriverJSResult>),
     FindElementCSS(String, IpcSender<Result<Option<String>, ()>>),
     FindElementsCSS(String, IpcSender<Result<Vec<String>, ()>>),
     FocusElement(String, IpcSender<Result<(), ()>>),
     GetActiveElement(IpcSender<Option<String>>),
-    GetCookie(String, IpcSender<Vec<CookieData>>),
-    GetCookies(IpcSender<Vec<CookieData>>),
+    GetCookie(String, IpcSender<Vec<Cookie>>),
+    GetCookies(IpcSender<Vec<Cookie>>),
     GetElementAttribute(String, String, IpcSender<Result<Option<String>, ()>>),
     GetElementCSS(String, String, IpcSender<Result<String, ()>>),
     GetElementRect(String, IpcSender<Result<Rect<f64>, ()>>),

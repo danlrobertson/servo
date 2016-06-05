@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use cookie_rs;
 use dom::bindings::codegen::Bindings::CSSStyleDeclarationBinding::CSSStyleDeclarationMethods;
 use dom::bindings::codegen::Bindings::DocumentBinding::DocumentMethods;
 use dom::bindings::codegen::Bindings::ElementBinding::ElementMethods;
@@ -31,7 +32,7 @@ use ipc_channel::ipc::{self, IpcSender};
 use js::jsapi::JSContext;
 use js::jsapi::{HandleValue, RootedValue};
 use js::jsval::UndefinedValue;
-use msg::constellation_msg::{CookieData, PipelineId, WindowSizeData};
+use msg::constellation_msg::PipelineId;
 use msg::webdriver_msg::WebDriverCookieError;
 use msg::webdriver_msg::{WebDriverFrameId, WebDriverJSError, WebDriverJSResult, WebDriverJSValue};
 use net_traits::CookieSource::{HTTP, NonHTTP};
@@ -184,7 +185,7 @@ pub fn handle_get_active_element(context: &BrowsingContext,
 
 pub fn handle_get_cookies(context: &BrowsingContext,
                          _pipeline: PipelineId,
-                         reply: IpcSender<Vec<CookieData>>) {
+                         reply: IpcSender<Vec<cookie_rs::Cookie>>) {
     let document = context.active_document();
     let url = document.url();
     let (sender, receiver) = ipc::channel().unwrap();
@@ -198,7 +199,7 @@ pub fn handle_get_cookies(context: &BrowsingContext,
 pub fn handle_get_cookie(context: &BrowsingContext,
                          _pipeline: PipelineId,
                          name: String,
-                         reply: IpcSender<Vec<CookieData>>) {
+                         reply: IpcSender<Vec<cookie_rs::Cookie>>) {
     let document = context.active_document();
     let url = document.url();
     let (sender, receiver) = ipc::channel().unwrap();
@@ -211,11 +212,11 @@ pub fn handle_get_cookie(context: &BrowsingContext,
 
 pub fn handle_add_cookie(context: &BrowsingContext,
                          _pipeline: PipelineId,
-                         cookie: CookieData,
+                         cookie: cookie_rs::Cookie,
                          reply: IpcSender<Result<(), WebDriverCookieError>>) {
     let document = context.active_document();
     let url = document.url();
-    let method = if cookie.http {
+    let method = if cookie.httponly {
         HTTP
     } else {
         NonHTTP

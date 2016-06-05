@@ -11,7 +11,7 @@ path = "lib.rs"
 [dependencies]
 bitflags = "0.7"
 brotli = {git = "https://github.com/ende76/brotli-rs"}
-cookie = {version = "0.2.4", features = ["serialize-rustc"]}
+cookie = { path = "/home/drobertson/git/servo/cookie-rs/", version = "0.2.5", features = ["serialize-serde", "serialize-rustc"] }
 device = {git = "https://github.com/servo/devices"}
 devtools_traits = {path = "../devtools_traits"}
 flate2 = "0.2.0"
