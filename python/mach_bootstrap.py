@@ -90,7 +90,7 @@ def _get_virtualenv_script_dir():
 # Possible names of executables, sorted from most to least specific
 PYTHON_NAMES = ["python-2.7", "python2.7", "python2", "python"]
 VIRTUALENV_NAMES = ["virtualenv-2.7", "virtualenv2.7", "virtualenv2", "virtualenv"]
-PIP_NAMES = ["pip-2.7", "pip2.7", "pip2", "pip"]
+PIP_NAMES = ["pip2.7", "pip2", "pip"]
 
 
 def _activate_virtualenv(topdir):
