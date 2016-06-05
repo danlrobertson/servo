@@ -282,8 +282,6 @@ impl FlexFlow {
             AxisSize::Infinite => content_inline_size,
         };
 
-        //let even_content_inline_size = inline_size / child_count;
-
         let container_mode = self.block_flow.base.block_container_writing_mode;
         self.block_flow.base.position.size.inline = inline_size;
 
@@ -311,6 +309,7 @@ impl FlexFlow {
               base.position.start.i = inline_child_start - base.intrinsic_inline_sizes.preferred_inline_size;
               inline_child_start = inline_child_start - child_size;
             };
+            let block_flow = flow_ref::deref_mut(&mut kid.flow).as_mut_block();
         }
     }
 
